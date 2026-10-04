@@ -43,8 +43,9 @@ In GitHub **Settings → Secrets and variables → Actions**, configure:
 - Repository variable `DAGSHUB_OWNER`
 - Repository secret `DAGSHUB_TOKEN`, with read access to the DVC remote
 
-Run the **CD** workflow from the `main` branch. Its build job pulls the DVC model,
-builds the image, and publishes `ghcr.io/uderox/ml-workflow-to-prod:latest`.
+Run the **CD** workflow from the `main` branch. Its build job downloads the exact model
+object referenced by `dvc.lock` from DagsHub, verifies its MD5 checksum, builds the
+image, and publishes `ghcr.io/uderox/ml-workflow-to-prod:latest`.
 The first deployment job is skipped until the Azure infrastructure exists.
 
 In the GitHub repository's **Packages**, open the
