@@ -37,11 +37,31 @@ jobs:
         with:
           version: "0.11.7"
 
-      - name: Pull the exact model CI tested
+      - name: Configure DVC access
         run: |
           uv sync --frozen --all-groups
           make dvc-auth
-          uv run dvc pull models/model.cbm
+
+      - name: Verify DagsHub can serve the locked model
+        run: |
+          set -euo pipefail
+          model_md5="$(awk '/path: models\/model.cbm/ { found=1; next } found && /md5:/ { print $2; exit }' dvc.lock)"
+          if [ -z "$model_md5" ]; then
+            echo "::error::Could not find the model checksum in dvc.lock."
+            exit 1
+          fi
+          status="$(curl --location --silent --show-error \
+            --output /dev/null --write-out '%{http_code}' \
+            --user "$DAGSHUB_OWNER:$DAGSHUB_TOKEN" \
+            "https://dagshub.com/${DAGSHUB_OWNER}/ML-workflow-to-prod.dvc/files/md5/${model_md5:0:2}/${model_md5:2}")"
+          if [ "$status" != 200 ]; then
+            echo "::error::DagsHub did not serve the locked model (HTTP $status). Check DAGSHUB_OWNER and the DAGSHUB_TOKEN repository secret permissions."
+            exit 1
+          fi
+          echo "DagsHub served the locked model successfully (HTTP $status)."
+
+      - name: Pull the exact model CI tested
+        run: uv run dvc pull models/model.cbm
 
       - name: Image name (registries need lowercase)
         id: name
