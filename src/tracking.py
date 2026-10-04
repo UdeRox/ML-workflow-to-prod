@@ -9,7 +9,7 @@ import os
 
 def configure() -> str:
     owner, token = os.getenv("DAGSHUB_OWNER"), os.getenv("DAGSHUB_TOKEN")
-    repo = os.getenv("DAGSHUB_REPO", "mlops-bank-marketing")
+    repo = os.getenv("DAGSHUB_REPO", "ML-workflow-to-prod")
     if owner and token and not os.getenv("MLFLOW_TRACKING_URI"):
         os.environ["MLFLOW_TRACKING_URI"] = f"https://dagshub.com/{owner}/{repo}.mlflow"
         os.environ["MLFLOW_TRACKING_USERNAME"] = owner
