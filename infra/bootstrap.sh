@@ -1,17 +1,23 @@
 #!/usr/bin/env bash
 # Create every Azure resource the workshop needs. Run it in Azure Cloud Shell (Bash):
 #
-#   ./infra/bootstrap.sh <github-owner>/<repo> <first-image> [region]
+#   ./infra/bootstrap.sh <github-owner>/<repo> <first-image> [region] [--what-if]
 #
 # Example:
-#   ./infra/bootstrap.sh dushan/mlops-bank-marketing ghcr.io/dushan/mlops-bank-marketing:latest
+#   ./infra/bootstrap.sh UdeRox/ML-workflow-to-prod ghcr.io/uderox/ml-workflow-to-prod:latest eastasia --what-if
 set -euo pipefail
 
 REPO="${1:?usage: bootstrap.sh owner/repo image [region]}"
 IMAGE="${2:?usage: bootstrap.sh owner/repo image [region]}"
 REGION="${3:-}"
+MODE="${4:-deploy}"
 RG="rg-mlops-workshop"
 HERE="$(cd "$(dirname "$0")" && pwd)"
+
+if [[ "$MODE" != "deploy" && "$MODE" != "--what-if" ]]; then
+  echo "The fourth argument must be --what-if when previewing."
+  exit 1
+fi
 
 echo "== 1/4 Registering resource providers (first time takes 1-2 minutes)"
 for ns in Microsoft.App Microsoft.OperationalInsights Microsoft.Insights Microsoft.ManagedIdentity; do
@@ -63,6 +69,16 @@ echo "   Azure will trust: $SUBJECT_PREFIX"
 
 echo "== 3/4 Creating resource group $RG"
 az group create --name "$RG" --location "$REGION" --output none
+
+if [[ "$MODE" == "--what-if" ]]; then
+  echo "== Previewing infra/main.bicep; no Azure resources will be deployed"
+  az deployment group what-if \
+    --resource-group "$RG" \
+    --name workshop \
+    --template-file "$HERE/main.bicep" \
+    --parameters githubSubjectPrefix="$SUBJECT_PREFIX" image="$IMAGE"
+  exit 0
+fi
 
 echo "== 4/4 Deploying infra/main.bicep (3-5 minutes)"
 OUTPUTS=$(az deployment group create \

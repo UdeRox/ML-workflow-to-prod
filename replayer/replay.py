@@ -15,7 +15,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-import httpx
+import httpx2 as httpx
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent

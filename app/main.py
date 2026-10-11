@@ -20,6 +20,7 @@ if os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"):
     configure_azure_monitor()
 
 from fastapi import FastAPI  # noqa: E402
+from fastapi.responses import RedirectResponse  # noqa: E402
 
 from app.schemas import FeedbackRequest, PredictionRequest, PredictionResponse  # noqa: E402
 
@@ -54,6 +55,11 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="Bank marketing propensity API", lifespan=lifespan)
+
+
+@app.get("/", include_in_schema=False)
+def root() -> RedirectResponse:
+    return RedirectResponse(url="/docs")
 
 
 @app.get("/health")

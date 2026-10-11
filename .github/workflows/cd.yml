@@ -37,28 +37,50 @@ jobs:
         with:
           version: "0.11.7"
 
-      # TEMPORARY: shows what CI uses to reach DagsHub. Remove once the build passes.
-      # GitHub masks secret values in logs, so only the token's length is printed.
-      - name: Debug DagsHub access (temporary)
+      - name: Configure DVC access
         run: |
-          echo "owner=[$DAGSHUB_OWNER] token_length=${#DAGSHUB_TOKEN}"
-          MD5=$(grep -A3 "path: models/model.cbm" dvc.lock | grep -m1 "md5:" | awk '{print $2}')
-          echo "model md5 in dvc.lock: $MD5"
-          curl -s -o /dev/null -w "model file on DagsHub: %{http_code}\n" -u "$DAGSHUB_OWNER:$DAGSHUB_TOKEN" \
-            "https://dagshub.com/$DAGSHUB_OWNER/mlops-bank-marketing.dvc/files/md5/${MD5:0:2}/${MD5:2}"
-          echo "--- .dvc/config ---"
-          cat .dvc/config
-
-      - name: Pull the exact model CI tested
-        run: |
-          echo "DEBUG owner=[$DAGSHUB_OWNER] token_length=${#DAGSHUB_TOKEN}"
-          MD5=$(grep -A3 "path: models/model.cbm" dvc.lock | grep -m1 "md5:" | awk '{print $2}')
-          echo "DEBUG model md5 in dvc.lock: $MD5"
-          curl -s -o /dev/null -w "DEBUG model file on DagsHub: %{http_code}\n" -u "$DAGSHUB_OWNER:$DAGSHUB_TOKEN" \
-            "https://dagshub.com/$DAGSHUB_OWNER/mlops-bank-marketing.dvc/files/md5/${MD5:0:2}/${MD5:2}"
-          uv sync --frozen
+          uv sync --frozen --all-groups
           make dvc-auth
-          uv run dvc pull models/model.cbm
+
+      - name: Download and verify the locked model from DagsHub
+        run: |
+          set -euo pipefail
+          model_md5="$(awk '/path: models\/model.cbm/ { found=1; next } found && /md5:/ { print $2; exit }' dvc.lock)"
+          if [ -z "$model_md5" ]; then
+            echo "::error::Could not find the model checksum in dvc.lock."
+            exit 1
+          fi
+          MODEL_MD5="$model_md5" uv run python - <<'PY'
+          import hashlib
+          import os
+          from pathlib import Path
+
+          import requests
+
+          owner = os.environ["DAGSHUB_OWNER"]
+          token = os.environ["DAGSHUB_TOKEN"]
+          expected_md5 = os.environ["MODEL_MD5"]
+          url = (
+              f"https://dagshub.com/{owner}/ML-workflow-to-prod.dvc/files/md5/"
+              f"{expected_md5[:2]}/{expected_md5[2:]}"
+          )
+          response = requests.get(url, auth=(owner, token), timeout=(15, 90))
+          response.raise_for_status()
+          actual_md5 = hashlib.md5(response.content, usedforsecurity=False).hexdigest()
+          if actual_md5 != expected_md5:
+              raise RuntimeError(
+                  f"Downloaded model checksum mismatch: expected {expected_md5}, "
+                  f"received {actual_md5}"
+              )
+
+          model_path = Path("models/model.cbm")
+          model_path.parent.mkdir(parents=True, exist_ok=True)
+          model_path.write_bytes(response.content)
+          print(
+              f"Downloaded and verified {model_path} "
+              f"({len(response.content)} bytes, MD5 {actual_md5})."
+          )
+          PY
 
       - name: Image name (registries need lowercase)
         id: name
@@ -151,5 +173,7 @@ jobs:
         env:
           IMAGE: ${{ needs.build.outputs.image }}:${{ needs.build.outputs.tag }}
         run: |
-          uv sync --frozen
+          uv sync --frozen --all-groups
+          make dvc-auth
+          uv run dvc pull run_info.json
           uv run python -m src.registry promote --image "$IMAGE"

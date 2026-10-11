@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+catboost_info/
+data/raw/
+data/processed/
+models/
+plots/
+mlruns/
+run_info.json
+eval_metrics.json
+gate_report.md

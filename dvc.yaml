@@ -32,8 +32,7 @@ stages:
       - model
     outs:
       - models/model.cbm
-      - run_info.json:
-          cache: false
+      - run_info.json
 
   evaluate:
     cmd: uv run python -m src.evaluate
