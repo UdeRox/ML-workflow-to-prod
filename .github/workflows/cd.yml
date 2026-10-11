@@ -174,4 +174,6 @@ jobs:
           IMAGE: ${{ needs.build.outputs.image }}:${{ needs.build.outputs.tag }}
         run: |
           uv sync --frozen --all-groups
+          make dvc-auth
+          uv run dvc pull run_info.json
           uv run python -m src.registry promote --image "$IMAGE"

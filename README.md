@@ -31,8 +31,9 @@ pull it without a stored registry password.
 
 ### 1. Prepare the model and publish the first image
 
-The production model is stored in DVC, not Git. Ensure the current `dvc.lock` and model
-artifact have been pushed to the configured DagsHub remote:
+The production model and its matching MLflow run metadata are stored in DVC, not Git.
+After reproducing the pipeline, ensure the updated `dvc.lock`, model, and `run_info.json`
+have been pushed to the configured DagsHub remote:
 
 ```sh
 uv run dvc push

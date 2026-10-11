@@ -5,7 +5,7 @@ IMAGE_TAG ?= local
 CONTAINER_NAME ?= bank-marketing-api-local
 HOST_PORT ?= 8001
 
-.PHONY: help serve test lint dvc-auth docker-build docker-run docker-check docker-logs docker-stop
+.PHONY: help serve test lint repro dvc-auth docker-build docker-run docker-check docker-logs docker-stop
 
 help:
 	@printf '%s\n' \
@@ -13,6 +13,7 @@ help:
 		'  make serve          Run the API directly with hot reload' \
 		'  make test           Run the unit and API tests' \
 		'  make lint           Run the configured Ruff checks' \
+		'  make repro          Reproduce the DVC pipeline' \
 		'' \
 		'Local Docker:' \
 		'  make docker-build   Build the API image (requires models/model.cbm)' \
@@ -31,6 +32,9 @@ test:
 
 lint:
 	uv run ruff check --select E4,E7,E9,F,E402 app src tests monitoring
+
+repro:
+	uv run dvc repro
 
 dvc-auth:
 	@test -n "$$DAGSHUB_OWNER" || (echo "DAGSHUB_OWNER is required" >&2; exit 1)
