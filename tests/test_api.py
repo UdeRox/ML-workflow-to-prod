@@ -32,6 +32,12 @@ def payload():
     return make_rows(1).drop(columns=["y"]).iloc[0].to_dict()
 
 
+def test_root_redirects_to_docs(client):
+    response = client.get("/", follow_redirects=False)
+    assert response.status_code == 307
+    assert response.headers["location"] == "/docs"
+
+
 def test_health(client):
     assert client.get("/health").json()["status"] == "healthy"
 
